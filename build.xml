@@ -120,6 +120,7 @@ jackson-core.jar graal-sdk.jar graaljs.jar tregex.jar truffle-api.jar" />
 
     <target name="scripts" depends="build-env">
         <mkdir dir="build/scripts"/>
+        <mkdir dir="scripts"/>
         <copy todir="build/scripts">
             <fileset dir="scripts/" includes="*">
             </fileset>
