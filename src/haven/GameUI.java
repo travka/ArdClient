@@ -86,6 +86,7 @@ public class GameUI extends ConsoleHost implements Console.Directory {
     public PBotScriptlistOld PBotScriptlistold;
     public MapView map;
     public Fightview fv;
+    public Fightsess fs;
     private List<Widget> meters = new LinkedList<Widget>();
     private List<Widget> cmeters = new LinkedList<Widget>();
     private Text lastmsg;
@@ -242,7 +243,7 @@ public class GameUI extends ConsoleHost implements Console.Directory {
             histbelt.hide();
 
 
-        PBotAPI.gui = this;
+//        PBotAPI.gui = this;
         if (Config.showTroughrad && Config.showBeehiverad)
             saferadius = 4;
         else if (Config.showTroughrad && Config.showBeehiverad)
@@ -252,12 +253,6 @@ public class GameUI extends ConsoleHost implements Console.Directory {
         else if (!Config.showTroughrad && !Config.showBeehiverad)
             saferadius = 1;
         fixAlarms();
-    }
-
-    @Override
-    protected void attach(UI ui) {
-        super.attach(ui);
-        ui.gui = this;
     }
 
     protected void added() {
@@ -327,6 +322,8 @@ public class GameUI extends ConsoleHost implements Console.Directory {
         PBotScriptlist.hide();
         PBotScriptlistold = add(new PBotScriptlistOld());
         PBotScriptlistold.hide();
+        Glob.timersThread = new haven.timers.TimersThread();
+        Glob.timersThread.start();
         timerswnd = add(new haven.timers.TimersWnd(this));
         try {
             PBotDiscord.initalize();
@@ -335,8 +332,8 @@ public class GameUI extends ConsoleHost implements Console.Directory {
         }
         if (!Config.autowindows.get("Timers").selected)
             timerswnd.hide();
+        ui.root.sessionDisplay.unlink();
         if (Config.sessiondisplay) {
-            ui.root.sessionDisplay.unlink();
             add(ui.root.sessionDisplay);
         }
     }
@@ -346,7 +343,11 @@ public class GameUI extends ConsoleHost implements Console.Directory {
         if (statuswindow != null) {//seems to be a bug that occasionally keeps the status window thread alive.
             statuswindow.reqdestroy();
         }
-        ui.root.add(ui.root.sessionDisplay = new SessionDisplay());
+        ui.root.sessionDisplay.unlink();
+        if (Config.sessiondisplay) {
+            ui.root.add(ui.root.sessionDisplay);
+        }
+        Glob.timersThread.kill();
         super.destroy();
         ui.gui = null;
     }
@@ -1035,7 +1036,7 @@ public class GameUI extends ConsoleHost implements Console.Directory {
         } else if (place == "fight") {
             fv = urpanel.add((Fightview) child, 0, 0);
         } else if (place == "fsess") {
-            add(child, Coord.z);
+            fs = add((Fightsess) child, Coord.z);
         } else if (place == "inv") {
             invwnd = new Hidewnd(Coord.z, "Inventory") {
                 public void cresize(Widget ch) {

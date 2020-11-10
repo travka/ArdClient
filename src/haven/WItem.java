@@ -183,17 +183,19 @@ public class WItem extends Widget implements DTarget {
         return (name != null && name.str != null && name.str.text != null) ? name.str.text : "";
     }));
 
-    private List<ItemInfo> info() {
+    private synchronized List<ItemInfo> info() {
         return (item.info());
     }
 
     public final AttrCache<Color> olcol = new AttrCache<>(this::info, info -> {
         Color ret = null;
-        for (ItemInfo inf : info) {
-            if (inf instanceof GItem.ColorInfo) {
-                Color c = ((GItem.ColorInfo) inf).olcol();
-                if (c != null)
-                    ret = (ret == null) ? c : Utils.preblend(ret, c);
+        synchronized (info) {
+            for (ItemInfo inf : info) {
+                if (inf instanceof GItem.ColorInfo) {
+                    Color c = ((GItem.ColorInfo) inf).olcol();
+                    if (c != null)
+                        ret = (ret == null) ? c : Utils.preblend(ret, c);
+                }
             }
         }
         Color fret = ret;
@@ -202,9 +204,11 @@ public class WItem extends Widget implements DTarget {
 
     public final AttrCache<GItem.InfoOverlay<?>[]> itemols = new AttrCache<>(this::info, info -> {
         ArrayList<GItem.InfoOverlay<?>> buf = new ArrayList<>();
-        for (ItemInfo inf : info) {
-            if (inf instanceof GItem.OverlayInfo)
-                buf.add(GItem.InfoOverlay.create((GItem.OverlayInfo<?>) inf));
+        synchronized (info) {
+            for (ItemInfo inf : info) {
+                if (inf instanceof GItem.OverlayInfo)
+                    buf.add(GItem.InfoOverlay.create((GItem.OverlayInfo<?>) inf));
+            }
         }
         GItem.InfoOverlay<?>[] ret = buf.toArray(new GItem.InfoOverlay<?>[0]);
         return (() -> ret);
@@ -429,12 +433,14 @@ public class WItem extends Widget implements DTarget {
                     item.wdgmsg("take", c);
                 return (true);
             }
+        } else if (btn == 2) {
+            if (ui.modmeta)
+                wdgmsg("transfer-identical-eq", this.item);
+            return (true);
         } else if (btn == 3) {
             if (ui.modctrl && ui.modshift) {
                 locked = !locked;
                 return true;
-            } else if (ui.modctrl) {
-                item.wdgmsg("iact", c, ui.modflags());
             } else if (ui.modmeta && !(parent instanceof Equipory)) {
                 wdgmsg("transfer-identical-asc", this.item);
             } else

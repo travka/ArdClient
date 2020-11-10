@@ -34,6 +34,8 @@ import java.awt.Color;
 import java.util.function.Consumer;
 
 import static haven.DefSettings.AMBERMENU;
+import static haven.DefSettings.BUGGEDMENU;
+import static haven.DefSettings.CLOSEFORMENU;
 import static java.lang.Math.PI;
 
 public class FlowerMenu extends Widget {
@@ -358,7 +360,7 @@ public class FlowerMenu extends Widget {
     public FlowerMenu(final Consumer<Integer> callback, final String... options) {
         super(Coord.z);
         this.callback = callback;
-        opts = new Petal[options.length];
+        opts = new Petal[CLOSEFORMENU.get() ? options.length + 1 : options.length];
 
         for (int i = 0; i < options.length; i++) {
             if (AMBERMENU.get()) {
@@ -370,6 +372,15 @@ public class FlowerMenu extends Widget {
             if (options[i].equals("Study") || options[i].equals("Turn"))    // eatable curios & spitroasting
                 ignoreAutoSetting = true;
         }
+
+        if (CLOSEFORMENU.get()) {
+            if (AMBERMENU.get()) {
+                add(opts[opts.length - 1] = new Petal("Close"));
+            } else {
+                add(opts[opts.length - 1] = new CustomPetal("Close"));
+            }
+            opts[opts.length - 1].num = opts.length - 1;
+        }
     }
 
     public FlowerMenu(String... options) {
@@ -380,6 +391,9 @@ public class FlowerMenu extends Widget {
     protected void added() {
         if (c.equals(-1, -1))
             c = parent.ui.lcc;
+        if (c.equals(0, 0)) {
+            move(parent.sz.div(2), 0.5, 0.5);
+        }
         mg = ui.grabmouse(this);
         kg = ui.grabkeys(this);
         organize(opts);
@@ -391,6 +405,8 @@ public class FlowerMenu extends Widget {
             return false;
         if (!anims.isEmpty())
             return (true);
+        if (BUGGEDMENU.get())
+            return super.mousedown(c, button);
         if (!super.mousedown(c, button))
             choose(null);
         return (true);
@@ -441,7 +457,7 @@ public class FlowerMenu extends Widget {
     public void choose(Petal option) {
         if (callback == null) {
             selected = true;
-            if (option == null) {
+            if (option == null || option.name.equals("Close")) {
                 wdgmsg("cl", -1);
                 lastSel = null;
             } else {

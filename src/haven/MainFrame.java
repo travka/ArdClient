@@ -57,7 +57,7 @@ public class MainFrame extends java.awt.Frame implements Runnable, Console.Direc
     private final ThreadGroup g;
     public final Thread mt;
     DisplayMode fsmode = null, prefs = null;
-    public static final String TITLE = "Ardennes Hafen Revived " + "1.03: Reign of the Toad King";
+    public static final String TITLE = "ARD Unstable " + "???: The Tale of the Snail Kingdom";
 
     static {
         try {
@@ -337,13 +337,14 @@ public class MainFrame extends java.awt.Frame implements Runnable, Console.Direc
                         if (configuration.customTitleBoolean)
                             setTitle(configuration.tittleCheck(sess));
                         else
-                            setTitle(TITLE + " \u2013 " + sess.username);
+                            setTitle(sess.username + " \u2013 " + TITLE);
                     }
                     sess = fun.run(lui);
                 }
             } catch (InterruptedException e) {
             } finally {
-                p.removeUI(lui);
+                //p.removeUI(lui);
+                p.removeUIS();
             }
             savewndstate();
         } finally {

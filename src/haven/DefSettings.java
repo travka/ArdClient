@@ -84,6 +84,7 @@ public class DefSettings {
     public static final IndirSetting<Boolean> QUICKERMENU = new IndirSetting<>(global, "gameplay.quicker-flowermenu");           //[Bool] Toggle quick-er flowermenu will autoselect items if so selected without even popping up flowermenu
     public static final IndirSetting<Boolean> AMBERMENU = new IndirSetting<>(global, "gameplay.amber-flowermenu");           //[Bool] Use amber flowermenu
     public static final IndirSetting<Boolean> BUGGEDMENU = new IndirSetting<>(global, "gameplay.bugged-flowermenu");         //[Bool] Whether not flowermenu should close on clicks outside of it
+    public static final IndirSetting<Boolean> CLOSEFORMENU = new IndirSetting<>(global, "gameplay.close-flowermenu");         //[Bool] Adds a close button to each flowermenu
     public static final IndirSetting<Boolean> SIMPLECROPS = new IndirSetting<>(global, "gameplay.simple-crops");             //[Bool] Toggle simple crop meshes
     public static final IndirSetting<Boolean> SHOWCROPSTAGE = new IndirSetting<>(global, "gameplay.show-crop-stage");        //[Bool] Toggle crop stages off/on
     public static final IndirSetting<Boolean> SHOWGOBHP = new IndirSetting<>(global, "gameplay.show-gob-hp");                //[Bool] Toggle gob hp visibility
@@ -148,6 +149,19 @@ public class DefSettings {
     public static final IndirSetting<Boolean> FREECAMLOCKELAV = new IndirSetting<>(global, "camera.free.lock-elevation");    //[Bool] Lock freecam elevation angle
     public static final IndirSetting<Integer> TIMERVOLUME = new IndirSetting<>(global, "audio.timer-volume");                //[Int] Timer volume
     public static final IndirSetting<Boolean> NOGOBAUDIO = new IndirSetting<>(global, "audio.no-gob-audio");
+
+    //Gob
+    public static final IndirSetting<Boolean> COLORIZEGOBS = new IndirSetting<>(global, "gob.colorize-kin");
+    public static final IndirSetting<Boolean> COLORIZEAGGRO = new IndirSetting<>(global, "gob.colorize-aggro");
+
+    //Audio
+    public static final IndirSetting<Double> ALERTVOL = new IndirSetting<>(global, "audio.alert-volume");
+    public static final IndirSetting<Double> POPUPMSGVOL = new IndirSetting<>(global, "audio.popup-msg-volume");
+    public static final IndirSetting<Boolean> SOUNDONPOPUPMSG = new IndirSetting<>(global, "audio.sound-on-friend-login");
+
+    //pathfinding
+    public static final IndirSetting<Boolean> LIMITPATHFINDING = new IndirSetting<>(global, "pathfinding.limit-search");
+    public static final IndirSetting<Boolean> RESEARCHUNTILGOAL = new IndirSetting<>(global, "pathfinding.research-until-at-goal");
 
     //Debug
     public static final IndirSetting<Boolean> DEBUG = new IndirSetting<>(global, "system.debug");
@@ -236,6 +250,7 @@ public class DefSettings {
         QUICKERMENU.ensure(false);
         AMBERMENU.ensure(true);
         BUGGEDMENU.ensure(false);
+        CLOSEFORMENU.ensure(false);
         SIMPLECROPS.ensure(false);
         SHOWCROPSTAGE.ensure(false);
         AUTOHEARTH.ensure(false);
@@ -283,6 +298,16 @@ public class DefSettings {
         FORAGEANIMALS.ensure(true);
         PATHFINDINGTIER.ensure(1);
         DEBUG.ensure(false);
+        //Gobs
+        COLORIZEGOBS.ensure(true);
+        COLORIZEAGGRO.ensure(true);
+        //Audio
+        ALERTVOL.ensure(1.0);
+        POPUPMSGVOL.ensure(1.0);
+        SOUNDONPOPUPMSG.ensure(true);
+        //pathfinding
+        LIMITPATHFINDING.ensure(false);
+        RESEARCHUNTILGOAL.ensure(true);
         //Belts
         SHOWFKBELT.ensure(true);
         FKBELTPAGE.ensure(0);
@@ -350,7 +375,7 @@ public class DefSettings {
             HiddenWndData.init();
             OverlayData.init();
             CustomQualityList.init();
-            MovableWidget.initialization();
+//            MovableWidget.initialization();
             //Internal lookups are no longer needed
             optint.get().close();
         } else {

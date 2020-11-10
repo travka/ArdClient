@@ -88,9 +88,9 @@ public class LoginScreen extends Widget {
         int maxlines = txt.maxLines = 200;
         log.pack();
         try {
-            InputStream in = LoginScreen.class.getResourceAsStream("/changelog.txt");
+            InputStream in = LoginScreen.class.getResourceAsStream("/CHANGELOG.txt");
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-            File f = Config.getFile("changelog.txt");
+            File f = Config.getFile("CHANGELOG.txt");
             FileOutputStream out = new FileOutputStream(f);
             String strLine;
             int count = 0;
@@ -284,7 +284,7 @@ public class LoginScreen extends Widget {
                         Config.logins.remove(itm);
                         Config.saveLogins();
                     }
-                } else if (c.x < sz.x - 35) {
+                } else if (lastMouseDown.x < sz.x - 35) {
                     parent.wdgmsg("forget");
                     parent.wdgmsg("login", new Object[]{new AuthClient.NativeCred(itm.name, itm.pass), false});
                     Context.accname = itm.name;
@@ -410,11 +410,20 @@ public class LoginScreen extends Widget {
     }
 
     protected void added() {
+        lower();
         presize();
         parent.setfocus(this);
+        if(Config.isUpdate){
+            showChangeLog();
+        }
     }
 
-    Coord oldsz;
+    public void resize(Coord sz) {
+        super.resize(sz);
+        if (opts != null && opts.visible)
+            opts.move(new Coord(sz.x * (opts.c.x + opts.sz.x / 2) / oldsz.x, sz.y * (opts.c.y + opts.sz.y / 2) / oldsz.y), 0.5, 0.5);
+    }
+
 
     public void draw(GOut g) {
         super.draw(g);
@@ -436,11 +445,6 @@ public class LoginScreen extends Widget {
             g.aimage(error.tex(), new Coord(LoginScreen.this.sz.x / 2, LoginScreen.this.sz.y / 2 + 100), 0.5, -1);
         if (progress != null)
             g.aimage(progress.tex(), new Coord(LoginScreen.this.sz.x / 2, LoginScreen.this.sz.y / 2), 0.5, -1);
-
-
-        if (oldsz != null && opts != null && opts.visible)
-            opts.move(new Coord(sz.x * (opts.c.x + opts.sz.x / 2) / oldsz.x, sz.y * (opts.c.y + opts.sz.y / 2) / oldsz.y), 0.5, 0.5);
-        oldsz = sz;
     }
 
     public boolean type(char k, KeyEvent ev) {
@@ -468,10 +472,8 @@ public class LoginScreen extends Widget {
                             }
                         }
 
-                        if (ui.gui != null) {
-                            if (ui.sess.alive()) {
-                                break;
-                            }
+                        if (ui != null && ui.gui != null && ui.sess != null && ui.sess.alive()) {
+                            break;
                         }
                         Thread.sleep(5000);
                     }

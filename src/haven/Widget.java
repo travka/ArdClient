@@ -51,7 +51,7 @@ import static haven.sloth.gui.MovableWidget.VISIBLE_PER;
 
 public class Widget {
     public UI ui;
-    public Coord c, sz;
+    public Coord c, sz, oldsz;
     public Widget next, prev, child, lchild, parent;
     public boolean focustab = false, focusctl = false, hasfocus = false, visible = true;
     private boolean attached = false;
@@ -243,9 +243,8 @@ public class Widget {
     }
 
     public Widget(Coord sz) {
-        this.ui = PBotAPI.ui();
         this.c = Coord.z;
-        this.sz = sz;
+        this.sz = this.oldsz = sz;
     }
 
     public Widget() {
@@ -255,7 +254,7 @@ public class Widget {
     public Widget(UI ui, Coord c, Coord sz) {
         this.ui = ui;
         this.c = c;
-        this.sz = sz;
+        this.sz = this.oldsz = sz;
         this.attached = true;
     }
 
@@ -267,8 +266,10 @@ public class Widget {
 
     protected void attached() {
         attached = true;
-        for (Widget ch = child; ch != null; ch = ch.next)
+        for (Widget ch = child; ch != null; ch = ch.next) {
+            ch.attach(this.ui);
             ch.attached();
+        }
     }
 
 
@@ -462,6 +463,15 @@ public class Widget {
                     } else {
                         throw (new RuntimeException("Invalid division operands: " + a + " - " + b));
                     }
+                } else if (op == 'S') {
+                    Object a = st.pop();
+                    if (a instanceof Integer) {
+                        st.push(UI.scale((Integer) a));
+                    } else if (a instanceof Coord) {
+                        st.push(UI.scale((Coord) a));
+                    } else {
+                        throw (new RuntimeException("Invalid scaling operand: " + a));
+                    }
                 } else if (Character.isWhitespace(op)) {
                 } else {
                     throw (new RuntimeException("Unknown position operation: " + op));
@@ -508,10 +518,12 @@ public class Widget {
             next.prev = prev;
         if (prev != null)
             prev.next = next;
-        if (parent.child == this)
-            parent.child = next;
-        if (parent.lchild == this)
-            parent.lchild = prev;
+        if (parent != null) {
+            if (parent.child == this)
+                parent.child = next;
+            if (parent.lchild == this)
+                parent.lchild = prev;
+        }
         next = null;
         prev = null;
     }
@@ -1009,6 +1021,7 @@ public class Widget {
     }
 
     public void resize(Coord sz) {
+        this.oldsz = this.sz != null ? this.sz : sz;
         this.sz = sz;
         for (Widget ch = child; ch != null; ch = ch.next)
             ch.presize();

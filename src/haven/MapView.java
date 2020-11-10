@@ -79,6 +79,7 @@ import java.util.TreeMap;
 import java.util.WeakHashMap;
 
 import static haven.DefSettings.DARKMODE;
+import static haven.DefSettings.DRAWGRIDRADIUS;
 import static haven.DefSettings.NIGHTVISION;
 import static haven.DefSettings.NVAMBIENTCOL;
 import static haven.DefSettings.NVDIFFUSECOL;
@@ -98,7 +99,7 @@ public class MapView extends PView implements DTarget, Console.Directory, PFList
     public Coord2d cc;
     public String curcamera;
     public final Glob glob;
-    private int view = (Config.lowerterraindistance ? 1 : 2);
+    public int view = DRAWGRIDRADIUS.get();//(Config.lowerterraindistance ? 1 : 2);
     private Collection<Delayed> delayed = new LinkedList<Delayed>();
     private Collection<Delayed> delayed2 = new LinkedList<Delayed>();
     private Collection<Rendered> extradraw = new LinkedList<Rendered>();
@@ -680,7 +681,7 @@ public class MapView extends PView implements DTarget, Console.Directory, PFList
         this.plgob = plgob;
         plgobid = plgob;
         this.gobs = new Gobs();
-        this.gridol = new TileOutline(glob.map);
+        this.gridol = new TileOutline(this);
         this.partyHighlight = new PartyHighlight(glob.party, plgob);
         setcanfocus(true);
         markedGobs.clear();
@@ -1269,8 +1270,9 @@ public class MapView extends PView implements DTarget, Console.Directory, PFList
         if (rl.cfg.pref.outline.val)
             rl.add(outlines, null);
         rl.add(map, null);
-        if (showgrid)
-            rl.add(gridol, null);
+        if (showgrid) {
+            rl.add(Config.slothgrid ? grid : gridol, null);
+        }
         rl.add(mapol, null);
         rl.add(gobs, null);
         if (placing != null)
@@ -1823,7 +1825,7 @@ public class MapView extends PView implements DTarget, Console.Directory, PFList
                 return true;
             } else {
                 //Way off target and not moving, cancel
-                clearmovequeue();
+                //clearmovequeue();
                 return false;
             }
         } else {
@@ -1831,10 +1833,49 @@ public class MapView extends PView implements DTarget, Console.Directory, PFList
         }
     }
 
+    int finishTimes = 0;
+    int maxfinish = 100;
+    boolean isclickongob = false;
+
+    public boolean isfinishmovequeue() {
+        final Gob pl = PBotUtils.player(ui);
+        if (pl != null) {
+            if (!pl.isMoving()) {
+                finishTimes++;
+                if (finishTimes > maxfinish) {
+                    return true;
+                } else if (movequeue.size() > 0) {
+                    return false;
+                } else if (movingto != null) {
+                    if (pathfindGob != null) {
+                        GobHitbox.BBox box = GobHitbox.getBBox(pathfindGob);
+                        GobHitbox.BBox pbox = GobHitbox.getBBox(pl);
+                        if (box != null && pbox != null) {
+                            return pathfindGob.rc.dist(pl.rc) <= Math.sqrt(Math.pow(Math.max(box.a.x, box.a.y), 2) * 2) + Math.sqrt(Math.pow(Math.max(pbox.a.x, pbox.a.y), 2) * 2);
+                        } else
+                            return movingto.dist(pl.rc) <= 5;
+                    } else
+                        return movingto.dist(pl.rc) <= 5;
+                }
+            } else {
+                finishTimes = 0;
+                return false;
+            }
+        }
+        finishTimes = 0;
+        return false;
+    }
+
+    public boolean isclearmovequeue() {
+        return pathfindGob == null && pathfindGobMod == 0 && movequeue.size() == 0 && movingto == null && ui.gui.pointer.tc == null;
+    }
+
     public void clearmovequeue() {
+        finishTimes = 0;
         if (pathfindGob != null) {
             pathfindGob = null; //set pathfind gob back to null incase pathfinding was interrupted in the middle of a pathfind right click.
             pathfindGobMod = 0;
+            isclickongob = false;
         }
         movequeue.clear();
         movingto = null;
@@ -1871,29 +1912,34 @@ public class MapView extends PView implements DTarget, Console.Directory, PFList
         return moves;
     }
 
-    public void pathto(final Coord2d c) {
+    public boolean pathto(final Coord2d c) {
         final Move[] moves = findpath(c);
         if (moves != null) {
             clearmovequeue();
             for (final Move m : moves) {
                 queuemove(m.dest());
             }
+            return true;
+        } else {
+            return false;
         }
     }
 
-    public void pathto(final Gob g) {
+    public boolean pathto(final Gob g) {
         g.updatePathfindingBlackout(true);
-        pathto(new Coord2d(g.getc()));
+        boolean yea = pathto(new Coord2d(g.getc()));
         g.updatePathfindingBlackout(false);
+        return yea;
     }
 
-    public void pathtoRightClick(final Gob g, int mod) {
+    public boolean pathtoRightClick(final Gob g, int mod) {
         //	PBotAPI.gui.map.purusPfRightClick(gob.gob, -1, 3, mod, null);
         g.updatePathfindingBlackout(true);
-        pathto(new Coord2d(g.getc()));
+        boolean yea = pathto(new Coord2d(g.getc()));
         pathfindGob = g;
         pathfindGobMod = mod;
         g.updatePathfindingBlackout(false);
+        return yea;
     }
 
     public void moveto(final Coord2d c) {
@@ -1943,10 +1989,12 @@ public class MapView extends PView implements DTarget, Console.Directory, PFList
             wdgmsg("click", new Coord(1, 1), movingto.floor(posres), 1, 0);
             lastMove = System.currentTimeMillis();
         }
-        if (movequeue.size() == 0 && pathfindGob != null) {
+        if (movequeue.size() == 0 && pathfindGob != null && !isclickongob) {
             wdgmsg("click", Coord.z, pathfindGob.rc.floor(posres), 3, pathfindGobMod, 0, (int) pathfindGob.id, pathfindGob.rc.floor(posres), 0, -1);
-            pathfindGob = null;
-            pathfindGobMod = 0;
+            isclickongob = true;
+        }
+        if (!isclearmovequeue() && isfinishmovequeue()) {
+            clearmovequeue();
         }
         partyHighlight.update();
     }

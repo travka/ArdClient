@@ -29,6 +29,7 @@ package haven;
 import haven.purus.pbot.PBotAPI;
 import modification.configuration;
 
+import java.awt.Font;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -65,6 +66,7 @@ public class UI {
     private final Context uictx;
     public ActAudio audio = new ActAudio();
     public Charlist charlist;
+    private static final double scalef = 1.0;
 
     {
         lastevent = lasttick = Utils.rtime();
@@ -133,7 +135,7 @@ public class UI {
         widgets.put(0, root);
         rwidgets.put(root, 0);
         setSession(sess);
-        PBotAPI.ui = this;
+//        PBotAPI.ui = this;
     }
 
     public UI(Context uictx, Coord sz) {
@@ -214,8 +216,14 @@ public class UI {
             wdg.attach(this);
             if (parent != 65535) {
                 Widget pwdg = widgets.get(parent);
-                if (pwdg == null)
-                    throw (new UIException("Null parent widget " + parent + " for " + id, type, cargs));
+                if (pwdg == null) {
+                    if (configuration.skipexceptions) {
+                        System.out.println("Null parent widget " + parent + " for " + id);
+                        return;
+                    } else
+                        throw (new UIException("Null parent widget " + parent + " for " + id, type, cargs));
+                }
+
                 pwdg.addchild(wdg, pargs);
 
                 if (pwdg instanceof Window) {
@@ -255,11 +263,21 @@ public class UI {
     public void addwidget(int id, int parent, Object[] pargs) {
         synchronized (this) {
             Widget wdg = widgets.get(id);
-            if (wdg == null)
-                throw (new UIException("Null child widget " + id + " added to " + parent, null, pargs));
+            if (wdg == null) {
+                if (configuration.skipexceptions) {
+                    System.out.println("Null child widget " + id + " added to " + parent);
+                    return;
+                } else
+                    throw (new UIException("Null child widget " + id + " added to " + parent, null, pargs));
+            }
             Widget pwdg = widgets.get(parent);
-            if (pwdg == null)
-                throw (new UIException("Null parent widget " + parent + " for " + id, null, pargs));
+            if (pwdg == null) {
+                if (configuration.skipexceptions) {
+                    System.out.println("Null parent widget " + parent + " for " + id);
+                    return;
+                } else
+                    throw (new UIException("Null parent widget " + parent + " for " + id, null, pargs));
+            }
             pwdg.addchild(wdg, pargs);
         }
     }
@@ -361,13 +379,15 @@ public class UI {
     private void removeid(Widget wdg) {
         //System.out.println("Removing widget "+wdg.toString());
         wdg.removed();
-        if (rwidgets.containsKey(wdg)) {
-            int id = rwidgets.get(wdg);
-            widgets.remove(id);
-            rwidgets.remove(wdg);
+        synchronized (rwidgets) {
+            if (rwidgets.containsKey(wdg)) {
+                int id = rwidgets.get(wdg);
+                widgets.remove(id);
+                rwidgets.remove(wdg);
+            }
+            for (Widget child = wdg.child; child != null; child = child.next)
+                removeid(child);
         }
-        for (Widget child = wdg.child; child != null; child = child.next)
-            removeid(child);
     }
 
     public void destroy(Widget wdg) {
@@ -453,7 +473,13 @@ public class UI {
             if (wdg != null) {
                 // try { for(Object obj:args) if(!wdg.toString().contains("CharWnd")) System.out.println("UI Wdg : " + wdg + " msg : "+msg+" id = " + id + " arg 1 : " + obj); }catch(ArrayIndexOutOfBoundsException qq){}
                 wdg.uimsg(msg.intern(), args);
-            } else throw (new UIException("Uimsg to non-existent widget " + id, msg, args));
+            } else {
+                if (configuration.skipexceptions) {
+                    System.out.println("Uimsg to non-existent widget " + id);
+                    return;
+                } else
+                    throw (new UIException("Uimsg to non-existent widget " + id, msg, args));
+            }
             configuration.Syslog(configuration.serverSender, wdg, id, msg, args);
         }
     }
@@ -616,5 +642,57 @@ public class UI {
     public void destroy() {
         audio.clear();
         removeid(root);
+    }
+
+    public static double scale(double v) {
+        return (v * scalef);
+    }
+
+    public static float scale(float v) {
+        return (v * (float) scalef);
+    }
+
+    public static int scale(int v) {
+        return (Math.round(scale((float) v)));
+    }
+
+    public static Coord scale(Coord v) {
+        return (v.mul(scalef));
+    }
+
+    public static Coord scale(int x, int y) {
+        return (scale(new Coord(x, y)));
+    }
+
+    public static Coord2d scale(Coord2d v) {
+        return (v.mul(scalef));
+    }
+
+    static public Font scale(Font f, float size) {
+        return (f.deriveFont(scale(size)));
+    }
+
+//    public static <T extends Tex> ScaledTex<T> scale(T tex) {
+//        return (new ScaledTex<T>(tex, UI.scale(tex.sz())));
+//    }
+
+//    public static <T extends Tex> ScaledTex<T> scale(ScaledTex<T> tex) {
+//        return (tex);
+//    }
+
+    public static double unscale(double v) {
+        return (v / scalef);
+    }
+
+    public static float unscale(float v) {
+        return (v / (float) scalef);
+    }
+
+    public static int unscale(int v) {
+        return (Math.round(unscale((float) v)));
+    }
+
+    public static Coord unscale(Coord v) {
+        return (v.div(scalef));
     }
 }

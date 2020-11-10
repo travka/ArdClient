@@ -95,8 +95,6 @@ public class configuration {
     public static int morethancolor = Utils.getprefi("morethancolor", -1);
     public static int morethancoloroutline = Utils.getprefi("morethancoloroutline", Color.RED.hashCode());
 
-    public static boolean pbotmode = Utils.getprefb("pbotmode", false); //off - latest ui, on - current ui
-
     public static List<String> liquids = new ArrayList<String>(Arrays.asList("Water", "Milk", "Aurochs Milk", "Cowsmilk", "Sheepsmilk", "Goatsmilk", "Piping Hot Tea", "Tea", "Applejuice", "Pearjuice", "Grapejuice", "Stale grapejuice", "Cider", "Perry", "Wine", "Beer", "Weißbier", "Mead")) {{
         sort(new Comparator<String>() {
             @Override
@@ -107,10 +105,12 @@ public class configuration {
     }};
     public static String autoDrinkLiquid = Utils.getpref("autoDrinkLiquid", "Water");
     public static boolean drinkorsip = Utils.getprefb("drinkorsip", false);
+    public static boolean autodrinkosip = Utils.getprefb("autodrinkosip", false);
     public static int autosipthreshold = Utils.getprefi("autosipthreshold", 100);
     public static boolean autoDrinkWhatever = Utils.getprefb("autoDrinkWhatever", false);
     public static boolean siponce = Utils.getprefb("siponce", false);
     public static int sipwaiting = Utils.getprefi("sipwaiting", 2000);
+    public static boolean drinkmessage = Utils.getprefb("drinkmessage", false);
 
     public static Tex invsq = Resource.loadtex("gfx/hud/invsq");
 
@@ -123,11 +123,16 @@ public class configuration {
         put("gfx/terobjs/dng/antdungeon", getDefaultTextName("gfx/terobjs/dng/antdungeon"));
         put("gfx/terobjs/wonders/tarpit", getDefaultTextName("gfx/terobjs/wonders/tarpit"));
     }};
+    public static boolean scalingmarks = Utils.getprefb("scalingmarks", false);
+    public static boolean bigmapshowgrid = Utils.getprefb("bigmapshowgrid", false);
+    public static boolean bigmaphidemarks = Utils.getprefb("bigmapshowmarks", false);
 
     public static float badcamdistdefault = Utils.getpreff("badcamdistdefault", 50.0f);
     public static float badcamdistminimaldefault = Utils.getpreff("badcamdistminimaldefault", 5.0f);
     public static float badcamelevdefault = Utils.getpreff("badcamelevdefault", (float) Math.PI / 4.0f);
     public static float badcamangldefault = Utils.getpreff("badcamangldefault", 0.0f);
+
+    public static boolean nocursor = Utils.getprefb("nocursor", false);
 
 
     public static String[] customMenuGrid = new String[]{Utils.getpref("customMenuGrid0", "6"), Utils.getpref("customMenuGrid1", "4")};
@@ -139,6 +144,7 @@ public class configuration {
     public static boolean logging = Utils.getprefb("msglogging", false);      //allow log in console
     public static boolean loadLog = false;
     public static boolean decodeCode = Utils.getprefb("decodeCode", false);
+    public static boolean skipexceptions = Utils.getprefb("skipexceptions", false);
 
     public static boolean msg_log_skip_boolean = false;     //allow chosen skip
     public static ArrayList<String> msg_log_skip = new ArrayList<String>() {{       //chosen msg
@@ -418,7 +424,7 @@ public class configuration {
             int h2 = chosenSize.y;
             double scale1 = (double) w2 / w;
             double scale2 = (double) h2 / h;
-            BufferedImage after = new BufferedImage(w2, h2, BufferedImage.TYPE_INT_RGB);
+            BufferedImage after = new BufferedImage(w2, h2, BufferedImage.TYPE_INT_ARGB);
             AffineTransform scaleInstance = AffineTransform.getScaleInstance(scale1, scale2);
             AffineTransformOp scaleOp = new AffineTransformOp(scaleInstance, AffineTransformOp.TYPE_BILINEAR);
 

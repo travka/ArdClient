@@ -39,7 +39,12 @@ import modification.configuration;
 import java.awt.Color;
 import java.awt.GraphicsEnvironment;
 import java.awt.event.KeyEvent;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -61,9 +66,12 @@ import static haven.DefSettings.ANIMALDANGERCOLOR;
 import static haven.DefSettings.ANIMALPATHCOL;
 import static haven.DefSettings.BEEHIVECOLOR;
 import static haven.DefSettings.BTNCOL;
+import static haven.DefSettings.BUGGEDMENU;
 import static haven.DefSettings.CHEESERACKMISSINGCOLOR;
+import static haven.DefSettings.CLOSEFORMENU;
 import static haven.DefSettings.DARKMODE;
 import static haven.DefSettings.DEEPWATERCOL;
+import static haven.DefSettings.DRAWGRIDRADIUS;
 import static haven.DefSettings.ERRORTEXTCOLOR;
 import static haven.DefSettings.GARDENPOTDONECOLOR;
 import static haven.DefSettings.GOBPATHCOL;
@@ -87,6 +95,7 @@ import static haven.DefSettings.SUPPORTDANGERCOLOR;
 import static haven.DefSettings.THEMES;
 import static haven.DefSettings.TROUGHCOLOR;
 import static haven.DefSettings.TXBCOL;
+import static haven.DefSettings.WIREFRAMEMODE;
 import static haven.DefSettings.WNDCOL;
 
 
@@ -96,7 +105,7 @@ public class OptWnd extends Window {
     private static final Text.Foundry fonttest = new Text.Foundry(Text.sans, 10).aa(true);
     public static final int VERTICAL_AUDIO_MARGIN = 5;
     public final Panel main, video, audio, display, map, general, combat, control, uis, uip, quality, mapping, flowermenus, soundalarms, hidesettings, studydesksettings, autodropsettings, keybindsettings, chatsettings, clearboulders, clearbushes, cleartrees, clearhides, discord, additions, modification;
-    public Panel waterPanel;
+    public Panel waterPanel, qualityPanel, mapPanel, devPanel;
     public Panel current;
     public CheckBox discordcheckbox, menugridcheckbox;
     CheckBox sm = null, rm = null, lt = null, bt = null, ltl, discordrole, discorduser;
@@ -247,8 +256,8 @@ public class OptWnd extends Window {
                 Label fpsBackgroundLimitLbl = new Label("Background FPS limit: " + (Config.fpsBackgroundLimit == -1 ? "unlimited" : Config.fpsBackgroundLimit));
                 appender.add(fpsBackgroundLimitLbl);
                 appender.add(new HSlider(200, 0, 49, 0) {
-                    protected void attach(UI ui) {
-                        super.attach(ui);
+                    protected void added() {
+                        super.added();
                         if (Config.fpsBackgroundLimit == -1) {
                             val = 49;
                         } else {
@@ -277,8 +286,8 @@ public class OptWnd extends Window {
                 Label fpsLimitLbl = new Label("FPS limit: " + (Config.fpsLimit == -1 ? "unlimited" : Config.fpsLimit));
                 appender.add(fpsLimitLbl);
                 appender.add(new HSlider(200, 0, 49, 0) {
-                    protected void attach(UI ui) {
-                        super.attach(ui);
+                    protected void added() {
+                        super.added();
                         if (Config.fpsLimit == -1) {
                             val = 49;
                         } else {
@@ -356,18 +365,24 @@ public class OptWnd extends Window {
                         a = val;
                     }
                 });
-                appender.add(new CheckBox("Lower terrain draw distance - Will increase performance, but look like shit. (requires logout)") {
-                    {
-                        a = Config.lowerterraindistance;
+//                appender.add(new CheckBox("Lower terrain draw distance - Will increase performance, but look like shit. (requires logout)") {
+//                    {
+//                        a = Config.lowerterraindistance;
+//                    }
+//
+//                    public void set(boolean val) {
+//                        Config.lowerterraindistance = val;
+//                        Utils.setprefb("lowerterraindistance", val);
+//                        a = val;
+//                    }
+//                });
+                appender.addRow(new IndirLabel(() -> String.format("Map View Distance: %d",
+                        DRAWGRIDRADIUS.get())), new IndirHSlider(200, 1, 5, DRAWGRIDRADIUS, val -> {
+                    if (ui.gui != null && ui.gui.map != null) {
+                        ui.gui.map.view = val;
                     }
-
-                    public void set(boolean val) {
-                        Config.lowerterraindistance = val;
-                        Utils.setprefb("lowerterraindistance", val);
-                        a = val;
-                    }
-                });
-                appender.add(new CheckBox("Disable biome tile transitions (requires logout)") {
+                }));
+                appender.add(new CheckBox("Disable biome tile transitions") {
                     {
                         a = Config.disabletiletrans;
                     }
@@ -376,6 +391,9 @@ public class OptWnd extends Window {
                         Config.disabletiletrans = val;
                         Utils.setprefb("disabletiletrans", val);
                         a = val;
+                        if (ui.sess != null) {
+                            ui.sess.glob.map.invalidateAll();
+                        }
                     }
                 });
                 appender.add(new CheckBox("Disable terrain smoothing (requires logout)") {
@@ -387,9 +405,12 @@ public class OptWnd extends Window {
                         Config.disableterrainsmooth = val;
                         Utils.setprefb("disableterrainsmooth", val);
                         a = val;
+                        if (ui.sess != null) {
+                            ui.sess.glob.map.invalidateAll();
+                        }
                     }
                 });
-                appender.add(new CheckBox("Disable terrain elevation (requires logout)") {
+                appender.add(new CheckBox("Disable terrain elevation") {
                     {
                         a = Config.disableelev;
                     }
@@ -398,6 +419,9 @@ public class OptWnd extends Window {
                         Config.disableelev = val;
                         Utils.setprefb("disableelev", val);
                         a = val;
+                        if (ui.sess != null) {
+                            ui.sess.glob.map.invalidateAll();
+                        }
                     }
                 });
                 appender.add(new CheckBox("Disable flavor objects including ambient sounds") {
@@ -411,6 +435,7 @@ public class OptWnd extends Window {
                         a = val;
                     }
                 });
+                appender.add(new IndirCheckBox("Wireframe mode", WIREFRAMEMODE));
                 appender.add(new CheckBox("Hide flavor objects but keep sounds (requires logout)") {
                     {
                         a = Config.hideflovisual;
@@ -571,6 +596,9 @@ public class OptWnd extends Window {
         mapping = add(new Panel());
         modification = add(new Panel());
         waterPanel = add(new Panel());
+        qualityPanel = add(new Panel());
+        mapPanel = add(new Panel());
+        devPanel = add(new Panel());
 
         initMain(gopts);
         initAudio();
@@ -594,6 +622,9 @@ public class OptWnd extends Window {
         initDiscord();
         initModification();
         initWater();
+        initQualityPanel();
+        initMapPanel();
+        initDevPanel();
 
         chpanel(main);
     }
@@ -748,13 +779,13 @@ public class OptWnd extends Window {
                 }
             }, new Coord(210, 240));
             */
-            /*
-            main.add(new Button(200, "Show Client Changelog") {
+
+            main.add(new Button(200, "Changelog") {
                 public void click() {
                    showChangeLog();
                 }
             }, new Coord(210, 270));
-            */
+
             main.add(new Button(200, "Switch character") {
                 public void click() {
                     if (Discord.jdalogin != null)
@@ -828,8 +859,8 @@ public class OptWnd extends Window {
         appender.addRow(new Label("Cleave Sound"), makeDropdownCleave());
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.cleavesoundvol * 1000);
             }
 
@@ -843,8 +874,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Timers alarm volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.timersalarmvol * 1000);
             }
 
@@ -858,8 +889,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Alerted gobs sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.alertsvol * 1000);
             }
 
@@ -873,8 +904,8 @@ public class OptWnd extends Window {
         appender.add(new Label("'Chip' sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxchipvol * 1000);
             }
 
@@ -887,8 +918,8 @@ public class OptWnd extends Window {
         appender.add(new Label("'Ding' sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxdingvol * 1000);
             }
 
@@ -902,8 +933,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Quern sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxquernvol * 1000);
             }
 
@@ -917,8 +948,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Door close sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxdoorvol * 1000);
             }
 
@@ -932,8 +963,8 @@ public class OptWnd extends Window {
         appender.add(new Label("'Whip' sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxwhipvol * 1000);
             }
 
@@ -947,8 +978,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Fireplace sound volume (req. restart)"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxfirevol * 1000);
             }
 
@@ -962,8 +993,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Clapping sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxclapvol * 1000);
             }
 
@@ -977,8 +1008,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Cauldron sound volume - Changes are not immediate, will trigger on next cauldon sound start."));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxcauldronvol * 1000);
             }
 
@@ -992,8 +1023,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Whistling sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxwhistlevol * 1000);
             }
 
@@ -1007,8 +1038,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Beehive sound volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxbeehivevol * 1000);
             }
 
@@ -1022,8 +1053,8 @@ public class OptWnd extends Window {
         appender.add(new Label("Chat message volume"));
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.sfxchatvol * 1000);
             }
 
@@ -1096,6 +1127,13 @@ public class OptWnd extends Window {
                 Utils.setprefb("sessiondisplay", val);
                 Config.sessiondisplay = val;
                 a = val;
+
+                ui.root.sessionDisplay.unlink();
+                if (Config.sessiondisplay)
+                    if (ui.gui != null)
+                        ui.gui.add(ui.root.sessionDisplay);
+                    else
+                        ui.root.add(ui.root.sessionDisplay);
             }
         });
 
@@ -1591,18 +1629,24 @@ public class OptWnd extends Window {
                 Utils.setprefb("scaletree", val);
                 configuration.scaletree = val;
                 this.a = val;
+                if (ui.sess != null) {
+                    ui.sess.glob.oc.refreshallresdraw();
+                }
             }
         }, new HSlider(200, 0, 255, configuration.scaletreeint) {
 
             @Override
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
             }
 
             @Override
             public void changed() {
                 configuration.scaletreeint = val;
                 Utils.setprefi("scaletreeint", configuration.scaletreeint);
+                if (ui.sess != null) {
+                    ui.sess.glob.oc.refreshallresdraw();
+                }
             }
 
             @Override
@@ -1694,11 +1738,11 @@ public class OptWnd extends Window {
         map.add(new Label("Show bushes:"), new Coord(165, 0));
         map.add(new Label("Show trees:"), new Coord(320, 0));
         map.add(new Label("Hide icons:"), new Coord(475, 0));
-        map.add(new Button(200, "Icon update (donotpress)") {
-            public void click() {
-                Iconfinder.updateConfig();
-            }
-        }, new Coord(425, 360));
+//        map.add(new Button(200, "Icon update (donotpress)") {
+//            public void click() {
+//                Iconfinder.updateConfig();
+//            }
+//        }, new Coord(425, 360));
 
         map.add(new CheckBox("Draw party members/names") {
             {
@@ -2044,8 +2088,8 @@ public class OptWnd extends Window {
         appender.addRow(new Label("Combat Start Sound"), makeDropdownCombat());
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.attackedvol * 1000);
             }
 
@@ -2178,8 +2222,8 @@ public class OptWnd extends Window {
 
         appender.addRow(new Label("Bad camera scrolling sensitivity"),
                 new HSlider(200, 0, 50, Config.badcamsensitivity) {
-                    protected void attach(UI ui) {
-                        super.attach(ui);
+                    protected void added() {
+                        super.added();
                         val = Config.badcamsensitivity;
                     }
 
@@ -2227,7 +2271,7 @@ public class OptWnd extends Window {
                 a = val;
             }
         });
-        appender.add(new CheckBox("Force hardware cursor (req. restart)") {
+        appender.add(new CheckBox("Force hardware cursor") {
             {
                 a = Config.hwcursor;
             }
@@ -2235,6 +2279,17 @@ public class OptWnd extends Window {
             public void set(boolean val) {
                 Utils.setprefb("hwcursor", val);
                 Config.hwcursor = val;
+                a = val;
+            }
+        });
+        appender.add(new CheckBox("Disable game cursors") {
+            {
+                a = configuration.nocursor;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("nocursor", val);
+                configuration.nocursor = val;
                 a = val;
             }
         });
@@ -3082,17 +3137,17 @@ public class OptWnd extends Window {
     }
 
     private void initModification() {
-        final WidgetVerticalAppender appender = new WidgetVerticalAppender(withScrollport(modification, new Coord(370, 350)));
-        final WidgetVerticalAppender appender2 = new WidgetVerticalAppender(modification);
-        appender2.setHorizontalMargin(5);
-        appender2.setX(400);
-
-        appender.add(new PButton(50, "Water", 'w', waterPanel));
+        final WidgetVerticalAppender appender = new WidgetVerticalAppender(withScrollport(modification, new Coord(620, 350)));
+        appender.setVerticalMargin(VERTICAL_MARGIN);
+        appender.setHorizontalMargin(HORIZONTAL_MARGIN);
 
         appender.add(new Label("Strange or unreal modifications"));
 
-        appender.setVerticalMargin(VERTICAL_MARGIN);
-        appender.setHorizontalMargin(HORIZONTAL_MARGIN);
+        appender.addRow(new PButton(50, "Water", 'w', waterPanel),
+                new PButton(50, "Map", 'm', mapPanel),
+                new PButton(50, "Quality", 'c', qualityPanel),
+                new PButton(50, "Dev", 'w', devPanel)
+        );
 
         appender.addRow(new CheckBox("Custom title: ") {
                             {
@@ -3213,46 +3268,6 @@ public class OptWnd extends Window {
                 return tex;
             }
         });
-        appender.add(new CheckBox("Log for developer") {
-            {
-                a = configuration.logging;
-            }
-
-            public void set(boolean val) {
-                Utils.setprefb("msglogging", val);
-                configuration.logging = val;
-                a = val;
-            }
-        });
-        appender.add(new CheckBox("Decode code") {
-            {
-                a = configuration.decodeCode;
-            }
-
-            public void set(boolean val) {
-                Utils.setprefb("decodeCode", val);
-                configuration.decodeCode = val;
-                a = val;
-            }
-        });
-
-        appender.add(new CheckBox("Mode for PBot") {
-            {
-                a = configuration.pbotmode;
-            }
-
-            public void set(boolean val) {
-                Utils.setprefb("pbotmode", val);
-                configuration.pbotmode = val;
-                a = val;
-            }
-
-            @Override
-            public Object tooltip(Coord c0, Widget prev) {
-                Tex tex = Text.render("Off - like old latest UI, On - only current UI").tex();
-                return tex;
-            }
-        });
 
         appender.addRow(new Label("Custom grid size: ") {
             @Override
@@ -3295,87 +3310,16 @@ public class OptWnd extends Window {
                 a = val;
             }
         });
+        appender.add(new Label("Flowermenu"));
+        appender.add(new IndirCheckBox("Don't close flowermenu on clicks", BUGGEDMENU));
+        appender.add(new IndirCheckBox("Close button to each flowermenu", CLOSEFORMENU));
 
-        appender2.add(new Label("Choose/add item quality color:"));
-        appender2.add(new CheckBox("Custom quality below") {
-            {
-                a = configuration.customquality;
-            }
-
-            public void set(boolean val) {
-                Utils.setprefb("customquality", val);
-                configuration.customquality = val;
-                a = val;
-            }
-        });
-
-        final CustomQualityList list = new CustomQualityList();
-        appender2.add(list);
-
-        appender2.addRow(new CheckBox("Quality color more than last") {
-            {
-                a = configuration.morethanquility;
-            }
-
-            public void set(boolean val) {
-                Utils.setprefb("morethanquility", val);
-                configuration.morethanquility = val;
-                a = val;
-            }
-        }, new ColorPreview(new Coord(20, 20), new Color(configuration.morethancolor, true), val -> {
-            configuration.morethancolor = val.hashCode();
-            Utils.setprefi("morethancolor", val.hashCode());
-        }), new ColorPreview(new Coord(20, 20), new Color(configuration.morethancoloroutline, true), val -> {
-            configuration.morethancoloroutline = val.hashCode();
-            Utils.setprefi("morethancoloroutline", val.hashCode());
-        }));
-        final ColorPreview colPre = new ColorPreview(new Coord(20, 20), Color.WHITE, val -> {
-            CustomQualityList.NewColor = val;
-        });
-        final TextEntry value = new TextEntry(120, "") {
-            @Override
-            public void activate(String text) {
-                try {
-                    list.add(Double.parseDouble(text), Double.parseDouble(text), CustomQualityList.NewColor, true);
-                } catch (Exception e) {
-                    System.out.println("Color Quality TextEntry " + e);
-                }
-                settext("");
-            }
-        };
-        appender2.addRow(value, colPre, new Button(45, "Add") {
-            @Override
-            public void click() {
-                try {
-                    if (!value.text.isEmpty())
-                        list.add(Double.parseDouble(value.text), Double.parseDouble(value.text), CustomQualityList.NewColor, true);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                value.settext("");
-            }
-        });
-
-        appender.add(new Label(""));
-        appender.add(new Label("Map settings. temp."));
-
-        appender.add(new CheckBox("Map settings. temp.") {
-            {
-                a = configuration.customMarkObj;
-            }
-
-            public void set(boolean val) {
-                Utils.setprefb("customMarkObj", val);
-                configuration.customMarkObj = val;
-                a = val;
-            }
-        });
-
+        appender.add(new Label("Camera"));
         appender.addRow(new Label("Minimal distance for free camera"),
                 new HSlider(200, -200, 200, (int) configuration.badcamdistminimaldefault) {
                     @Override
-                    protected void attach(UI ui) {
-                        super.attach(ui);
+                    protected void added() {
+                        super.added();
                     }
 
                     @Override
@@ -3396,7 +3340,7 @@ public class OptWnd extends Window {
     }
 
     private void initWater() {
-        final WidgetVerticalAppender appender = new WidgetVerticalAppender(withScrollport(waterPanel, new Coord(370, 350)));
+        final WidgetVerticalAppender appender = new WidgetVerticalAppender(withScrollport(waterPanel, new Coord(620, 350)));
         appender.setVerticalMargin(5);
         appender.setHorizontalMargin(5);
 
@@ -3438,6 +3382,20 @@ public class OptWnd extends Window {
             public Object tooltip(Coord c0, Widget prev) {
                 return Text.render("Sip once instead of drinking a lot").tex();
             }
+        }, new CheckBox("Auto drink'o'sip") {
+            {
+                a = configuration.autodrinkosip;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("autodrinkosip", val);
+                configuration.autodrinkosip = val;
+                a = val;
+            }
+
+            public Object tooltip(Coord c0, Widget prev) {
+                return Text.render("Automatically choose to drink or sip (Water = Drink, Other = Sip)").tex();
+            }
         });
 
         appender.addRow(new Label("Liquid"), makeSelectAutoDrinkLiquid(), new CheckBox("Autodrink whatever i find") {
@@ -3453,14 +3411,16 @@ public class OptWnd extends Window {
         });
 
         appender.addRow(new Label("Autodrink Threshold"), new HSlider(130, 0, 100, Config.autodrinkthreshold) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (Config.autodrinkthreshold);
             }
+
             public void changed() {
                 Utils.setprefi("autodrinkthreshold", val);
                 Config.autodrinkthreshold = val;
             }
+
             public Object tooltip(Coord c0, Widget prev) {
                 return Text.render("Autodrink Threshold : " + val + " Percent").tex();
             }
@@ -3469,35 +3429,207 @@ public class OptWnd extends Window {
         appender.addRow(new Label("Autodrink check frequency (Seconds)"), makeAutoDrinkTimeDropdown());
 
         appender.addRow(new Label("Autosip Threshold to this position"), new HSlider(130, 0, 100, configuration.autosipthreshold) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (configuration.autosipthreshold);
             }
+
             public void changed() {
                 Utils.setprefi("autosipthreshold", val);
                 configuration.autosipthreshold = val;
             }
+
             public Object tooltip(Coord c0, Widget prev) {
                 return Text.render("Autosip Threshold : " + val + " Percent").tex();
             }
         });
 
         appender.addRow(new Label("Error waiting time"), new HSlider(130, 0, 10000, configuration.sipwaiting) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (configuration.sipwaiting);
             }
+
             public void changed() {
                 Utils.setprefi("sipwaiting", val);
                 configuration.sipwaiting = val;
             }
+
             public Object tooltip(Coord c0, Widget prev) {
                 return Text.render("Autosip time waiting before error : " + val + " ms").tex();
+            }
+        });
+        appender.add(new CheckBox("Show error message") {
+            {
+                a = configuration.drinkmessage;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("drinkmessage", val);
+                configuration.drinkmessage = val;
+                a = val;
             }
         });
 
         waterPanel.add(new PButton(200, "Back", 27, modification), new Coord(210, 360));
         waterPanel.pack();
+    }
+
+    private void initQualityPanel() {
+        final WidgetVerticalAppender appender = new WidgetVerticalAppender(withScrollport(qualityPanel, new Coord(620, 350)));
+        appender.setVerticalMargin(5);
+        appender.setHorizontalMargin(5);
+
+        appender.add(new Label("Choose/add item quality color:"));
+        appender.add(new CheckBox("Custom quality below") {
+            {
+                a = configuration.customquality;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("customquality", val);
+                configuration.customquality = val;
+                a = val;
+            }
+        });
+
+        final CustomQualityList list = new CustomQualityList();
+        appender.add(list);
+
+        appender.addRow(new CheckBox("Quality color more than last") {
+            {
+                a = configuration.morethanquility;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("morethanquility", val);
+                configuration.morethanquility = val;
+                a = val;
+            }
+        }, new ColorPreview(new Coord(20, 20), new Color(configuration.morethancolor, true), val -> {
+            configuration.morethancolor = val.hashCode();
+            Utils.setprefi("morethancolor", val.hashCode());
+        }), new ColorPreview(new Coord(20, 20), new Color(configuration.morethancoloroutline, true), val -> {
+            configuration.morethancoloroutline = val.hashCode();
+            Utils.setprefi("morethancoloroutline", val.hashCode());
+        }));
+        final ColorPreview colPre = new ColorPreview(new Coord(20, 20), Color.WHITE, val -> {
+            CustomQualityList.NewColor = val;
+        });
+        final TextEntry value = new TextEntry(120, "") {
+            @Override
+            public void activate(String text) {
+                try {
+                    list.add(Double.parseDouble(text), Double.parseDouble(text), CustomQualityList.NewColor, true);
+                } catch (Exception e) {
+                    System.out.println("Color Quality TextEntry " + e);
+                }
+                settext("");
+            }
+        };
+        appender.addRow(value, colPre, new Button(45, "Add") {
+            @Override
+            public void click() {
+                try {
+                    if (!value.text.isEmpty())
+                        list.add(Double.parseDouble(value.text), Double.parseDouble(value.text), CustomQualityList.NewColor, true);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                value.settext("");
+            }
+        });
+
+        qualityPanel.add(new PButton(200, "Back", 27, modification), new Coord(210, 360));
+        qualityPanel.pack();
+    }
+
+    private void initMapPanel() {
+        final WidgetVerticalAppender appender = new WidgetVerticalAppender(withScrollport(mapPanel, new Coord(620, 350)));
+        appender.setVerticalMargin(5);
+        appender.setHorizontalMargin(5);
+
+        appender.add(new CheckBox("Additional marks on the map") {
+            {
+                a = configuration.customMarkObj;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("customMarkObj", val);
+                configuration.customMarkObj = val;
+                a = val;
+            }
+
+            @Override
+            public Object tooltip(Coord c0, Widget prev) {
+                Tex tex = Text.render("Automatically places markrs on the map: caves, dungeons, tarpits.").tex();
+                return tex;
+            }
+        });
+
+        appender.add(new CheckBox("Scaling marks from zoom") {
+            {
+                a = configuration.scalingmarks;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("scalingmarks", val);
+                configuration.scalingmarks = val;
+                a = val;
+            }
+
+            @Override
+            public Object tooltip(Coord c0, Widget prev) {
+                Tex tex = Text.render("On a large map the marks will look small").tex();
+                return tex;
+            }
+        });
+
+        mapPanel.add(new PButton(200, "Back", 27, modification), new Coord(210, 360));
+        mapPanel.pack();
+    }
+
+    private void initDevPanel() {
+        final WidgetVerticalAppender appender = new WidgetVerticalAppender(withScrollport(devPanel, new Coord(620, 350)));
+        appender.setVerticalMargin(5);
+        appender.setHorizontalMargin(5);
+
+        appender.add(new CheckBox("Log for developer") {
+            {
+                a = configuration.logging;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("msglogging", val);
+                configuration.logging = val;
+                a = val;
+            }
+        });
+        appender.add(new CheckBox("Decode code") {
+            {
+                a = configuration.decodeCode;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("decodeCode", val);
+                configuration.decodeCode = val;
+                a = val;
+            }
+        });
+        appender.add(new CheckBox("Skip exceptions") {
+            {
+                a = configuration.skipexceptions;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("skipexceptions", val);
+                configuration.skipexceptions = val;
+                a = val;
+            }
+        });
+
+        devPanel.add(new PButton(200, "Back", 27, modification), new Coord(210, 360));
+        devPanel.pack();
     }
 
     private void initFlowermenus() {
@@ -3956,6 +4088,17 @@ public class OptWnd extends Window {
                 ui.sess.glob.oc.changeAllGobs();
             }
         }));
+        appender.add(new CheckBox("New grid type") {
+            {
+                a = Config.slothgrid;
+            }
+
+            public void set(boolean val) {
+                Utils.setprefb("slothgrid", val);
+                Config.slothgrid = val;
+                a = val;
+            }
+        });
         appender.add(new Button(200, "New Hidden System", false) {
             public void click() {
                 if (ui.gui != null)
@@ -3994,8 +4137,8 @@ public class OptWnd extends Window {
         appender.addRow(new Label("Unknown Player Alarm"), makeAlarmDropdownUnknown());
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.alarmunknownvol * 1000);
             }
 
@@ -4009,8 +4152,8 @@ public class OptWnd extends Window {
         appender.addRow(new Label("Red Player Alarm"), makeAlarmDropdownRed());
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.alarmredvol * 1000);
             }
 
@@ -4034,8 +4177,8 @@ public class OptWnd extends Window {
         });
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.chatalarmvol * 1000);
             }
 
@@ -4049,8 +4192,8 @@ public class OptWnd extends Window {
         appender.addRow(new Label("Study Finish Alarm"), makeAlarmDropdownStudy());
         appender.setVerticalMargin(VERTICAL_AUDIO_MARGIN);
         appender.add(new HSlider(200, 0, 1000, 0) {
-            protected void attach(UI ui) {
-                super.attach(ui);
+            protected void added() {
+                super.added();
                 val = (int) (Config.studyalarmvol * 1000);
             }
 
@@ -4508,7 +4651,7 @@ public class OptWnd extends Window {
         chpanel(main);
         super.show();
     }
-    /*
+
     private void showChangeLog() {
         Window log = ui.root.add(new Window(new Coord(50, 50), "Changelog"), new Coord(100, 50));
         log.justclose = true;
@@ -4517,9 +4660,9 @@ public class OptWnd extends Window {
         int maxlines = txt.maxLines = 200;
         log.pack();
         try {
-            InputStream in = LoginScreen.class.getResourceAsStream("/changelog.txt");
+            InputStream in = LoginScreen.class.getResourceAsStream("/CHANGELOG.txt");
             BufferedReader br = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-            File f = Config.getFile("changelog.txt");
+            File f = Config.getFile("CHANGELOG.txt");
             FileOutputStream out = new FileOutputStream(f);
             String strLine;
             int count = 0;
@@ -4535,7 +4678,6 @@ public class OptWnd extends Window {
         }
         txt.setprog(0);
     }
-    */
 
     private Dropbox<String> makeAlarmDropdownUnknown() {
         final List<String> alarms = Config.alarms.values().stream().map(x -> x.toString()).collect(Collectors.toList());

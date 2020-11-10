@@ -26,7 +26,9 @@
 
 package haven;
 
+import haven.error.ErrorHandler;
 import haven.purus.Iconfinder;
+import haven.sloth.util.ObservableMap;
 import integrations.mapv4.MappingClient;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -118,6 +120,7 @@ public class Config {
     public static boolean mapshowgrid = Utils.getprefb("mapshowgrid", false);
     public static boolean mapshowviewdist = Utils.getprefb("mapshowviewdist", false);
     public static boolean disabletiletrans = Utils.getprefb("disabletiletrans", false);
+    public static boolean slothgrid = Utils.getprefb("slothgrid", false);
     public static boolean itemmeterbar = Utils.getprefb("itemmeterbar", false);
     public static boolean showprogressperc = Utils.getprefb("showprogressperc", true);
     public static int fpsLimit = Utils.getprefi("fpsLimit", 200);
@@ -301,6 +304,7 @@ public class Config {
     public static boolean splitskills = Utils.getprefb("splitskills", true);
     public static boolean pf = false;
     public static String playerposfile;
+    public static Double uiscale = getfloat("haven.uiscale", null);
     public static byte[] authck = null;
     public static String prefspec = "hafen";
     //public static String version;
@@ -326,7 +330,7 @@ public class Config {
     public static int smatSupportsblue = Utils.getprefi("smatSupportsblue", 0);
     public static String confid = "ArdClient";
     public static boolean elitecombatanimal = Utils.getprefb("disableAllAnimations", true);
-    // public static final boolean isUpdate;
+    public static final boolean isUpdate;
     private static String username, playername;
     public static boolean showPBot = Utils.getprefb("showPBot", true);
     public static boolean showPBotOld = Utils.getprefb("showPBotOld", true);
@@ -350,7 +354,7 @@ public class Config {
     public static String attackedsfx = Utils.getpref("attackedsfx", "None");
     public static double attackedvol = Utils.getprefd("attackedvol", 0.8);
     public static HashMap<String, Boolean> curioslist = null;
-    public static HashMap<String, Boolean> autodroplist = null;
+    public static ObservableMap<String, Boolean> autodroplist = null;
 
     public final static String chatfile = "chatlog.txt";
     public static PrintWriter chatlog = null;
@@ -1119,51 +1123,51 @@ public class Config {
         String p;
         if ((p = getprop("haven.authck", null)) != null)
             authck = Utils.hex2byte(p);
-      /*  try {
-            InputStream in = ErrorHandler.class.getResourceAsStream("/buildinfo");
-            try {
-                if (in != null) {
-                    java.util.Scanner s = new java.util.Scanner(in);
-                    String[] binfo = s.next().split(",");
-                   // version = binfo[0];
-                    gitrev = binfo[1];
-                }
-            } finally {
-                in.close();
-            }
-        } catch (Exception e) {}*/
+//        try {
+//            InputStream in = ErrorHandler.class.getResourceAsStream("/buildinfo");
+//            try {
+//                if (in != null) {
+//                    java.util.Scanner s = new java.util.Scanner(in);
+//                    String[] binfo = s.next().split(",");
+//                    gitrev = binfo[0];
+//                    version = binfo[1];
+//                    System.out.println(gitrev + " " + version);
+//                }
+//            } finally {
+//                in.close();
+//            }
+//        } catch (Exception e) {
+//        }
         loadBuildVersion();
-        /*
-        isUpdate = (!version.equals(newversion)) || !getFile("changelog.txt").exists();
+
+        isUpdate = (!version.equals(newversion)) || !getFile("CHANGELOG.txt").exists();
         if (isUpdate) {
-         //   Config.version = newversion;
-            Utils.setpref("version",newversion);
+            Config.version = newversion;
+            Utils.setpref("version", newversion);
             Config.version = newversion;
         }
-        */
 
-        /*
+
         try {
-            InputStream in = ErrorHandler.class.getResourceAsStream("/CHANGELOG");
+            InputStream in = ErrorHandler.class.getResourceAsStream("/CHANGELOG.txt");
             try {
                 if (in != null) {
                     java.util.Scanner s = new java.util.Scanner(in);
                     Changelogbuffer = new StringBuffer();
-                    while(s.hasNextLine()) {
+                    while (s.hasNextLine()) {
                         Changelogbuffer.append("-");
                         Changelogbuffer.append(s.nextLine());
                     }
-                    //  }
                     Changelog = Changelogbuffer.toString();
                 }
             } finally {
                 in.close();
             }
-        } catch (Exception e) {}
-        */
+        } catch (Exception e) {
+        }
+
 
         // populate grid ids map
-//  TODO remember to add Oddimap in
         BufferedReader reader = null;
         try {
             reader = new BufferedReader(new FileReader("grid_ids.txt"));
@@ -1443,6 +1447,13 @@ public class Config {
 
     public static String userpath() {
         return String.format("%s/%s", username, playername);
+    }
+
+    private static Double getfloat(String name, Double def) {
+        String val = getprop(name, null);
+        if (val == null)
+            return (def);
+        return (Double.parseDouble(val));
     }
 
 

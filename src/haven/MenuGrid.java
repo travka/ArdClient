@@ -61,9 +61,11 @@ import haven.automation.TrellisDestroy;
 import haven.automation.TrellisHarvest;
 import haven.purus.Farmer;
 import haven.purus.Farmer2;
+import haven.purus.FlowerPicker;
 import haven.purus.StockpileFiller;
 import haven.purus.TroughFiller;
 import haven.purus.pbot.PBotUtils;
+import haven.res.gfx.fx.floatimg.DamageText;
 import modification.configuration;
 
 import java.awt.Color;
@@ -830,7 +832,7 @@ public class MenuGrid extends Widget {
                     }
                 }
         ));
-        addSpecial(new SpecialPagina(this, "paginae::amber::farmer",
+        addSpecial(new SpecialPagina(this, "paginae::amber::farmer2",
                 Resource.local().load("paginae/purus/farmer2"),
                 (pag) -> {
 
@@ -843,6 +845,12 @@ public class MenuGrid extends Widget {
                             ui.gui.map.registerGobSelect(f);
                         }
                     }
+                }
+        ));
+        addSpecial(new SpecialPagina(this, "paginae::amber::flowerpicker",
+                Resource.local().load("paginae/purus/flowerPicker"),
+                (pag) -> {
+                    new Thread(new FlowerPicker(ui.gui)).start();
                 }
         ));
         addSpecial(new SpecialPagina(this, "paginae::amber::troughfill",
@@ -1058,11 +1066,14 @@ public class MenuGrid extends Widget {
                 Resource.local().load("paginae/windows/highlight"),
                 (pag) -> ui.gui.toggleHighlight()));
         addSpecial(new SpecialPagina(this, "paginae::windows::overlay",
-                Resource.local().load("paginae/windows/highlight"), //FIXME ingame setting title and picture
+                Resource.local().load("paginae/windows/overlay"), //FIXME ingame setting title and picture
                 (pag) -> ui.gui.toggleOverlay()));
         addSpecial(new SpecialPagina(this, "paginae::windows::gobspawner",
                 Resource.local().load("paginae/windows/gobspawner"),
                 (pag) -> ui.gui.toggleGobSpawner()));
+        addSpecial(new SpecialPagina(this, "paginae::windows::nulldamage",
+                Resource.local().load("paginae/windows/nulldamage"),
+                (pag) -> ui.gui.map.removeCustomSprites(DamageText.id)));
 
         addSpecial(new SpecialPagina(this, "paginae::windows::lmap",
                 Resource.local().load("paginae/windows/lmap"),

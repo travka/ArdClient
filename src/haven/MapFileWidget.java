@@ -32,14 +32,22 @@ import haven.MapFile.Marker;
 import haven.MapFile.PMarker;
 import haven.MapFile.SMarker;
 import haven.MapFile.Segment;
+import modification.configuration;
 
 import javax.imageio.ImageIO;
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -48,6 +56,7 @@ import java.util.LinkedList;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 
 import static haven.MCache.cmaps;
 
@@ -68,6 +77,7 @@ public class MapFileWidget extends Widget {
     public static int zoom = 0;
     public static int zoomlvls = 7;
     private static final double[] scaleFactors = new double[]{1 / 4.0, 1 / 2.0, 1, 100 / 75.0, 100 / 50.0, 100 / 25.0, 100 / 15.0, 100 / 8.0}; //FIXME that his add more scale
+    private static final Tex gridred = Resource.loadtex("gfx/hud/mmap/gridred");
 
     public MapFileWidget(MapFile file, Coord sz) {
         super();
@@ -161,6 +171,7 @@ public class MapFileWidget extends Widget {
         public final Indir<Grid> gref;
         private Grid cgrid = null;
         private Defer.Future<Tex> img = null;
+        private Tex tex = null;
 
         public DisplayGrid(Segment seg, Coord sc, Indir<Grid> gref) {
             this.seg = seg;
@@ -176,7 +187,13 @@ public class MapFileWidget extends Widget {
                 img = Defer.later(() -> new TexI(grid.render(sc.mul(cmaps.div(scalef())))));
                 cgrid = grid;
             }
-            return ((img == null) ? null : img.get());
+
+            try {
+                tex = img.get();
+            } catch(Exception e) {
+                System.out.println(e + " " + seg.id);
+            }
+            return tex;
         }
     }
 
@@ -204,16 +221,32 @@ public class MapFileWidget extends Widget {
         }
 
         public void draw(GOut g, Coord c) {
+            float scale = (zoom + 1 + 5f) / (zoomlvls - 1);
             if (m instanceof PMarker) {
                 Coord ul = c.sub(flagcc);
+                Coord sflagcc = flagcc.div(scale);
+                Coord sul = c.sub(sflagcc);
                 g.chcolor(((PMarker) m).color);
-                g.image(flagfg, ul);
+                if (configuration.scalingmarks) {
+                    Tex iflagfg = new TexI(PUtils.uiscale(flagfg.img, flagfg.sz.div(scale)));
+                    g.image(iflagfg, sul);
+                } else
+                    g.image(flagfg, ul);
                 g.chcolor();
-                g.image(flagbg, ul);
+                if (configuration.scalingmarks) {
+                    Tex iflagbg = new TexI(PUtils.uiscale(flagbg.img, flagbg.sz.div(scale)));
+                    g.image(iflagbg, sul);
+                } else
+                    g.image(flagbg, ul);
                 if (Config.mapdrawflags) {
                     Tex tex = Text.renderstroked(m.nm, Color.white, Color.BLACK, Text.num12boldFnd).tex();
-                    if (tex != null)
-                        g.image(tex, ul.add(flagfg.sz.x / 2, -20).sub(tex.sz().x / 2, 0));
+                    if (tex != null) {
+                        if (configuration.scalingmarks) {
+                            Tex itex = new TexI(PUtils.uiscale(((TexI) tex).back, tex.sz().div(scale)));
+                            g.image(itex, sul.add(sflagcc.x / 2, -20).sub(itex.sz().x / 2, 0));
+                        } else
+                            g.image(tex, ul.add(flagfg.sz.x / 2, -20).sub(tex.sz().x / 2, 0));
+                    }
                 }
             } else if (m instanceof SMarker) {
                 SMarker sm = (SMarker) m;
@@ -232,13 +265,24 @@ public class MapFileWidget extends Widget {
                 }
                 if (img != null) {
                     //((SMarker)m).res.name.startsWith("gfx/invobjs/small"));
+                    Coord scc = cc.div(scale);
+                    Tex iimg = new TexI(PUtils.uiscale(img.img, img.sz.div(scale)));
                     if (Config.mapdrawquests) {
                         if (sm.res != null && sm.res.name.startsWith("gfx/invobjs/small")) {
                             Tex tex = Text.renderstroked(sm.nm, Color.white, Color.BLACK, Text.num12boldFnd).tex();
-                            g.image(tex, c.sub(cc).add(img.sz.x / 2, -20).sub(tex.sz().x / 2, 0));
+                            if (tex != null) {
+                                Tex itex = new TexI(PUtils.uiscale(((TexI) tex).back, tex.sz().div(scale)));
+                                if (configuration.scalingmarks)
+                                    g.image(itex, c.sub(scc).add(iimg.sz().x / 2, -20).sub(itex.sz().x / 2, 0));
+                                else
+                                    g.image(tex, c.sub(cc).add(img.sz.x / 2, -20).sub(tex.sz().x / 2, 0));
+                            }
                         }
                     }
-                    g.image(img, c.sub(cc));
+                    if (configuration.scalingmarks)
+                        g.image(iimg, c.sub(scc));
+                    else
+                        g.image(img, c.sub(cc));
                 }
             }
         }
@@ -314,12 +358,15 @@ public class MapFileWidget extends Widget {
             }
             Coord ul = hsz.add(c.mul(cmaps.div(scalef()))).sub(loc.tc);
             g.image(img, ul, cmaps.div(scalef()));
+            if (configuration.bigmapshowgrid)
+                g.image(gridred, ul, cmaps.div(scalef()));
         }
         if ((markers == null) || (file.markerseq != markerseq))
             remark(loc, dext);
-        if (markers != null) {
+        if (markers != null && !configuration.bigmaphidemarks) {
             for (DisplayMarker mark : markers) {
-                mark.draw(g, hsz.sub(loc.tc).add(mark.m.tc.div(scalef())));
+                if (ui != null && ui.gui != null && ui.gui.mapfile != null && ui.gui.mapfile.markers.contains(mark.m))
+                    mark.draw(g, hsz.sub(loc.tc).add(mark.m.tc.div(scalef())));
             }
         }
     }
@@ -536,7 +583,7 @@ public class MapFileWidget extends Widget {
 
 
     private Object biomeat(Coord c) {
-        final Coord tc = c.sub(sz.div(2)).mul(zoom == 0 ? 1 : scalef()).add(curloc.tc.mul(zoom == 0 ? 1 : scalef()));
+        final Coord tc = c.sub(sz.div(2)).mul(scalef()).add(curloc.tc.mul(scalef()));
         final Coord gc = tc.div(cmaps);
         String newbiome;
         try {
@@ -558,4 +605,181 @@ public class MapFileWidget extends Widget {
         return biome;
     }
 
+    public static class ExportWindow extends Window implements MapFile.ExportStatus {
+        private Thread th;
+        private volatile String prog = "Exporting map...";
+
+        public ExportWindow() {
+            super(new Coord(300, 65), "Exporting map...", true);
+            adda(new Button(100, "Cancel", false, this::cancel), asz.x / 2, 40, 0.5, 0.0);
+        }
+
+        public void run(Thread th) {
+            (this.th = th).start();
+        }
+
+        public void cdraw(GOut g) {
+            g.text(prog, new Coord(10, 10));
+        }
+
+        public void cancel() {
+            th.interrupt();
+        }
+
+        public void tick(double dt) {
+            if (!th.isAlive())
+                destroy();
+        }
+
+        public void grid(int cs, int ns, int cg, int ng) {
+            this.prog = String.format("Exporting map cut %,d/%,d in segment %,d/%,d", cg, ng, cs, ns);
+        }
+
+        public void mark(int cm, int nm) {
+            this.prog = String.format("Exporting marker", cm, nm);
+        }
+    }
+
+    public static class ImportWindow extends Window {
+        private Thread th;
+        private volatile String prog = "Initializing";
+        private double sprog = -1;
+
+        public ImportWindow() {
+            super(new Coord(300, 65), "Importing map...", true);
+            adda(new Button(100, "Cancel", false, this::cancel), asz.x / 2, 40, 0.5, 0.0);
+        }
+
+        public void run(Thread th) {
+            (this.th = th).start();
+        }
+
+        public void cdraw(GOut g) {
+            String prog = this.prog;
+            if (sprog >= 0)
+                prog = String.format("%s: %d%%", prog, (int) Math.floor(sprog * 100));
+            else
+                prog = prog + "...";
+            g.text(prog, new Coord(10, 10));
+        }
+
+        public void cancel() {
+            th.interrupt();
+        }
+
+        public void tick(double dt) {
+            if (!th.isAlive())
+                destroy();
+        }
+
+        public void prog(String prog) {
+            this.prog = prog;
+            this.sprog = -1;
+        }
+
+        public void sprog(double sprog) {
+            this.sprog = sprog;
+        }
+    }
+
+    public void exportmap(File path) {
+        GameUI gui = getparent(GameUI.class);
+        ExportWindow prog = new ExportWindow();
+        Thread th = new HackThread(() -> {
+            try {
+                try (OutputStream out = new BufferedOutputStream(new FileOutputStream(path))) {
+                    file.export(out, MapFile.ExportFilter.all, prog);
+                }
+            } catch (IOException e) {
+                e.printStackTrace(Debug.log);
+                gui.error("Unexpected error occurred when exporting map.");
+            } catch (InterruptedException e) {
+            }
+        }, "Mapfile exporter");
+        prog.run(th);
+        gui.adda(prog, gui.sz.div(2), 0.5, 1.0);
+    }
+
+    public void importmap(File path) {
+        GameUI gui = getparent(GameUI.class);
+        ImportWindow prog = new ImportWindow();
+        Thread th = new HackThread(() -> {
+            long size = path.length();
+            class Updater extends CountingInputStream {
+                Updater(InputStream bk) {
+                    super(bk);
+                }
+
+                protected void update(long val) {
+                    super.update(val);
+                    prog.sprog((double) pos / (double) size);
+                }
+            }
+            try {
+                prog.prog("Validating map data");
+                try (InputStream in = new Updater(new FileInputStream(path))) {
+                    file.reimport(in, MapFile.ImportFilter.readonly);
+                }
+                prog.prog("Importing map data");
+                try (InputStream in = new Updater(new FileInputStream(path))) {
+                    file.reimport(in, MapFile.ImportFilter.all);
+                }
+            } catch (InterruptedException e) {
+            } catch (Exception e) {
+                e.printStackTrace(Debug.log);
+                e.printStackTrace();
+                gui.error("Could not import map: " + e.getMessage());
+            }
+        }, "Mapfile importer");
+        prog.run(th);
+        gui.adda(prog, gui.sz.div(2), 0.5, 1.0);
+    }
+
+    public void exportmap() {
+        java.awt.EventQueue.invokeLater(() -> {
+            JFileChooser fc = new JFileChooser();
+            fc.setFileFilter(new FileNameExtensionFilter("Exported Haven map data", "hmap"));
+            if (fc.showSaveDialog(null) != JFileChooser.APPROVE_OPTION)
+                return;
+            File path = fc.getSelectedFile();
+            if (path.getName().indexOf('.') < 0)
+                path = new File(path.toString() + ".hmap");
+            exportmap(path);
+        });
+    }
+
+    public void importmap() {
+        java.awt.EventQueue.invokeLater(() -> {
+            JFileChooser fc = new JFileChooser();
+            fc.setFileFilter(new FileNameExtensionFilter("Exported Haven map data", "hmap"));
+            if (fc.showOpenDialog(null) != JFileChooser.APPROVE_OPTION)
+                return;
+            importmap(fc.getSelectedFile());
+        });
+    }
+
+    private Map<String, Console.Command> cmdmap = new TreeMap<String, Console.Command>();
+
+    {
+        cmdmap.put("exportmap", new Console.Command() {
+            public void run(Console cons, String[] args) {
+                if (args.length > 1)
+                    exportmap(new File(args[1]));
+                else
+                    exportmap();
+            }
+        });
+        cmdmap.put("importmap", new Console.Command() {
+            public void run(Console cons, String[] args) {
+                if (args.length > 1)
+                    importmap(new File(args[1]));
+                else
+                    importmap();
+            }
+        });
+    }
+
+    public Map<String, Console.Command> findcmds() {
+        return (cmdmap);
+    }
 }

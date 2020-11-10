@@ -29,13 +29,14 @@ package haven;
 import haven.purus.pbot.PBotUtils;
 import haven.res.ui.tt.q.qbuff.QBuff;
 import integrations.food.FoodService;
-import integrations.food.IconService;
-import modification.configuration;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 
 import static haven.Text.num10Fnd;
@@ -242,7 +243,7 @@ public class GItem extends AWidget implements ItemInfo.SpriteOwner, GSprite.Owne
     public List<ItemInfo> info() {
         if (info == null && rawinfo != null) {
             info = ItemInfo.buildinfo(this, rawinfo);
-            configuration.resourceLog(getname(), "tt", info);
+            //configuration.resourceLog(getname(), "tt", info);
             info.add(new ItemInfo.AdHoc(this, "\n" + getres().name));
             try {
                 // getres() can throw Loading, ignore it
@@ -251,6 +252,55 @@ public class GItem extends AWidget implements ItemInfo.SpriteOwner, GSprite.Owne
             }
         }
         return (info);
+    }
+
+    public <T> Optional<T> getinfo(Class<T> type) {
+        try {
+            for (final ItemInfo info : info()) {
+                if (type.isInstance(info)) {
+                    return Optional.of(type.cast(info));
+                }
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    public <T> Optional<T> getinfo(Class<T> type, List<ItemInfo> infolst) {
+        try {
+            for (final ItemInfo info : infolst) {
+                if (type.isInstance(info)) {
+                    return Optional.of(type.cast(info));
+                }
+            }
+            return Optional.empty();
+        } catch (Exception e) {
+            return Optional.empty();
+        }
+    }
+
+    public <T> List<T> getinfos(Class<T> type) {
+        final List<T> infos = new ArrayList<>();
+        try {
+            for (final ItemInfo info : info()) {
+                if (type.isInstance(info)) {
+                    infos.add(type.cast(info));
+                }
+            }
+            return infos;
+        } catch (Exception e) {
+            return infos;
+        }
+    }
+
+    public Optional<String> name() {
+        final ItemInfo.Name name = getinfo(ItemInfo.Name.class).orElse(null);
+        if (name != null) {
+            return Optional.of(name.str.text);
+        } else {
+            return Optional.empty();
+        }
     }
 
     public Resource resource() {
@@ -328,8 +378,8 @@ public class GItem extends AWidget implements ItemInfo.SpriteOwner, GSprite.Owne
             Resource curs = ui.root.getcurs(Coord.z);
             String name = this.resource().basename();
             String invname = this.getname();
-            for (String itm : Config.autodroplist.keySet()) {
-                if (itm.equals(invname) && Config.autodroplist.get(itm)) {
+            for (Map.Entry<String, Boolean> entry : Config.autodroplist.entrySet()) {
+                if (entry.getKey().equals(invname) && entry.getValue()) {
                     this.wdgmsg("drop", Coord.z);
                 }
             }
